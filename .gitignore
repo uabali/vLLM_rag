@@ -1,4 +1,4 @@
 chroma_db/
 env/
 data/
-cuda_control.py
+_pycache_/

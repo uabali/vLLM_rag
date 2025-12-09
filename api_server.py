@@ -1,8 +1,8 @@
-# api_server.py - RAG API Server with Ollama
 from fastapi import FastAPI
 from pydantic import BaseModel
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_qdrant import QdrantVectorStore
+from qdrant_client import QdrantClient
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
@@ -23,9 +23,14 @@ embeddings = HuggingFaceEmbeddings(
 )
 
 # Vector store
-vectorstore = Chroma(
-    persist_directory="./chroma_db",
-    embedding_function=embeddings
+COLLECTION_NAME = "my_documents"
+QDRANT_PATH = "./qdrant_db"
+
+client = QdrantClient(path=QDRANT_PATH)
+vectorstore = QdrantVectorStore(
+    client=client,
+    collection_name=COLLECTION_NAME,
+    embedding=embeddings,
 )
 
 # LLM - Ollama

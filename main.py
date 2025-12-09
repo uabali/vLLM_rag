@@ -1,7 +1,9 @@
 from langchain_community.document_loaders import PyPDFLoader , PyPDFDirectoryLoader
 from langchain_text_splitters.character import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_qdrant import QdrantVectorStore
+from qdrant_client import QdrantClient
+from qdrant_client.http.models import Distance, VectorParams
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
@@ -32,17 +34,29 @@ embeddings = HuggingFaceEmbeddings(
     encode_kwargs={"normalize_embeddings": True}
 )
 
-if os.path.exists("./chroma_db"):
-    vectorstore = Chroma(
-        persist_directory="./chroma_db",
-        embedding_function=embeddings
+COLLECTION_NAME = "my_documents"
+QDRANT_PATH = "./qdrant_db"
+
+client = QdrantClient(path=QDRANT_PATH)
+
+if not client.collection_exists(COLLECTION_NAME):
+    client.create_collection(
+        collection_name=COLLECTION_NAME,
+        vectors_config=VectorParams(size=1024, distance=Distance.COSINE)  # bge-m3 için 1024 dim
     )
-else:
-    vectorstore = Chroma.from_documents(
+    vectorstore = QdrantVectorStore.from_documents(
         documents=docs,
         embedding=embeddings,
-        persist_directory="./chroma_db"
+        collection_name=COLLECTION_NAME,
+        path=QDRANT_PATH,
     )
+else:
+    vectorstore = QdrantVectorStore(
+        client=client,
+        collection_name=COLLECTION_NAME,
+        embedding=embeddings,
+    )
+    
 
 llm = Ollama(
     model="llama3:8b",

@@ -1,4 +1,5 @@
 chroma_db/
-env/
+vllm-env/
 data/
 _pycache_/
+

@@ -72,7 +72,7 @@ async def lifespan(app: FastAPI):
     logger.info("Starting RAG API Server...")
     logger.info("Model: Qwen/Qwen2.5-3B-Instruct")
     logger.info("Vector DB: ChromaDB")
-    logger.info("vLLM Endpoint: http://localhost:8081/v1")
+    logger.info("vLLM Endpoint: http://localhost:8080/v1")
     yield
     logger.info("Shutting down RAG API Server...")
 

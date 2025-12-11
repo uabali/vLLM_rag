@@ -335,6 +335,131 @@ def main():
     # Always show text report
     print_text_report(data, str(filename))
 
+# ═══════════════════════════════════════════════════════════════════
+# GPU COMPARISON CHARTS
+# ═══════════════════════════════════════════════════════════════════
+
+def compare_two_gpus_visual(json_file1: str, json_file2: str):
+    """Compare two GPU results side by side with charts"""
+    try:
+        import matplotlib.pyplot as plt
+        import matplotlib
+        matplotlib.use('Agg')
+    except ImportError:
+        print("[ERROR] matplotlib required for GPU comparison charts")
+        return False
+    
+    with open(json_file1) as f:
+        data1 = json.load(f)
+    with open(json_file2) as f:
+        data2 = json.load(f)
+    
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    
+    # Extract data
+    users1 = [r['user_count'] for r in data1['results']]
+    latency1 = [r['metrics']['avg_latency_s'] for r in data1['results']]
+    throughput1 = [r['metrics']['throughput_rps'] for r in data1['results']]
+    p95_1 = [r['metrics']['p95_s'] for r in data1['results']]
+    apdex1 = [r['metrics']['apdex_score'] for r in data1['results']]
+    
+    users2 = [r['user_count'] for r in data2['results']]
+    latency2 = [r['metrics']['avg_latency_s'] for r in data2['results']]
+    throughput2 = [r['metrics']['throughput_rps'] for r in data2['results']]
+    p95_2 = [r['metrics']['p95_s'] for r in data2['results']]
+    apdex2 = [r['metrics']['apdex_score'] for r in data2['results']]
+    
+    gpu1_name = data1['benchmark_info']['gpu_name'].split('NVIDIA GeForce ')[-1]
+    gpu2_name = data2['benchmark_info']['gpu_name'].split('NVIDIA GeForce ')[-1]
+    
+    # Plot 1: Latency Comparison
+    axes[0, 0].plot(users1, latency1, 'o-', label=gpu1_name, linewidth=2.5, markersize=8, color='#2E86AB')
+    axes[0, 0].plot(users2, latency2, 's-', label=gpu2_name, linewidth=2.5, markersize=8, color='#A23B72')
+    axes[0, 0].set_xlabel('Concurrent Users', fontsize=11, fontweight='bold')
+    axes[0, 0].set_ylabel('Avg Latency (s)', fontsize=11, fontweight='bold')
+    axes[0, 0].set_title('Average Latency Comparison', fontsize=13, fontweight='bold')
+    axes[0, 0].legend(fontsize=10, loc='best')
+    axes[0, 0].grid(True, alpha=0.3, linestyle='--')
+    
+    # Add value labels
+    for i, (u, l) in enumerate(zip(users1, latency1)):
+        axes[0, 0].text(u, l, f'{l:.1f}', fontsize=8, ha='center', va='bottom')
+    for i, (u, l) in enumerate(zip(users2, latency2)):
+        axes[0, 0].text(u, l, f'{l:.1f}', fontsize=8, ha='center', va='top')
+    
+    # Plot 2: Throughput Comparison
+    x = range(len(users1))
+    width = 0.35
+    axes[0, 1].bar([i - width/2 for i in x], throughput1, width, label=gpu1_name, color='#2E86AB', edgecolor='navy')
+    axes[0, 1].bar([i + width/2 for i in x], throughput2, width, label=gpu2_name, color='#A23B72', edgecolor='darkred')
+    axes[0, 1].set_xlabel('Concurrent Users', fontsize=11, fontweight='bold')
+    axes[0, 1].set_ylabel('Throughput (req/s)', fontsize=11, fontweight='bold')
+    axes[0, 1].set_title('Throughput Comparison', fontsize=13, fontweight='bold')
+    axes[0, 1].set_xticks(x)
+    axes[0, 1].set_xticklabels(users1)
+    axes[0, 1].legend(fontsize=10)
+    axes[0, 1].grid(axis='y', alpha=0.3, linestyle='--')
+    
+    # Add value labels
+    for i, v in enumerate(throughput1):
+        axes[0, 1].text(i - width/2, v, f'{v:.2f}', ha='center', va='bottom', fontsize=8)
+    for i, v in enumerate(throughput2):
+        axes[0, 1].text(i + width/2, v, f'{v:.2f}', ha='center', va='bottom', fontsize=8)
+    
+    # Plot 3: P95 Latency Comparison
+    axes[1, 0].plot(users1, p95_1, '^-', label=f'{gpu1_name} (P95)', linewidth=2.5, markersize=8, color='#2E86AB')
+    axes[1, 0].plot(users2, p95_2, 'v-', label=f'{gpu2_name} (P95)', linewidth=2.5, markersize=8, color='#A23B72')
+    axes[1, 0].set_xlabel('Concurrent Users', fontsize=11, fontweight='bold')
+    axes[1, 0].set_ylabel('P95 Latency (s)', fontsize=11, fontweight='bold')
+    axes[1, 0].set_title('P95 Latency Comparison (95th Percentile)', fontsize=13, fontweight='bold')
+    axes[1, 0].legend(fontsize=10)
+    axes[1, 0].grid(True, alpha=0.3, linestyle='--')
+    
+    # Plot 4: Apdex Score Comparison
+    axes[1, 1].plot(users1, apdex1, 'D-', label=gpu1_name, linewidth=2.5, markersize=8, color='#2E86AB')
+    axes[1, 1].plot(users2, apdex2, 'D-', label=gpu2_name, linewidth=2.5, markersize=8, color='#A23B72')
+    axes[1, 1].axhline(y=0.94, color='green', linestyle='--', alpha=0.5, label='Excellent (0.94+)')
+    axes[1, 1].axhline(y=0.85, color='orange', linestyle='--', alpha=0.5, label='Good (0.85+)')
+    axes[1, 1].axhline(y=0.70, color='red', linestyle='--', alpha=0.5, label='Fair (0.70+)')
+    axes[1, 1].set_xlabel('Concurrent Users', fontsize=11, fontweight='bold')
+    axes[1, 1].set_ylabel('Apdex Score', fontsize=11, fontweight='bold')
+    axes[1, 1].set_title('User Satisfaction (Apdex Score)', fontsize=13, fontweight='bold')
+    axes[1, 1].set_ylim(0, 1.05)
+    axes[1, 1].legend(fontsize=9, loc='lower left')
+    axes[1, 1].grid(True, alpha=0.3, linestyle='--')
+    
+    # Overall title
+    fig.suptitle(f'GPU Performance Comparison: {gpu1_name} vs {gpu2_name}', 
+                 fontsize=16, fontweight='bold', y=0.995)
+    
+    plt.tight_layout(rect=[0, 0, 1, 0.99])
+    
+    # Save to reports directory
+    output_file = REPORTS_DIR / f"gpu_comparison_{Path(json_file1).stem}_vs_{Path(json_file2).stem}.png"
+    plt.savefig(output_file, dpi=300, bbox_inches='tight')
+    print(f"\n✓ GPU comparison chart saved: {output_file}\n")
+    
+    return True
+
+def compare_all_gpus_visual():
+    """Compare all available GPU benchmark results"""
+    json_files = glob.glob(str(RESULTS_DIR / "benchmark_*.json"))
+    
+    if len(json_files) < 2:
+        print("[INFO] Need at least 2 benchmark results for comparison")
+        return False
+    
+    # Sort by date and compare newest two
+    json_files.sort(key=os.path.getmtime, reverse=True)
+    
+    print(f"\n{'='*70}")
+    print(f"GPU VISUAL COMPARISON")
+    print(f"{'='*70}")
+    print(f"\nFound {len(json_files)} benchmark results")
+    print(f"Comparing latest 2 results...\n")
+    
+    return compare_two_gpus_visual(json_files[0], json_files[1])
+
 if __name__ == "__main__":
     main()
 

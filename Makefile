@@ -14,7 +14,7 @@
 # Use bash instead of sh (for 'source' command)
 SHELL := /bin/bash
 
-.PHONY: help vllm api test benchmark visualize all-tests clean health smoke load stress spike
+.PHONY: help vllm api test benchmark visualize all-tests clean health smoke load stress spike compare compare-csv compare-visual export-csv compare-all
 
 # Default target
 help:
@@ -39,6 +39,13 @@ help:
 	@echo "  Results:"
 	@echo "    make visualize     Visualize latest results"
 	@echo "    make results       Show results folder"
+	@echo ""
+	@echo "  Comparison:"
+	@echo "    make compare       Compare GPU results (text)"
+	@echo "    make compare-csv   Compare and export to CSV"
+	@echo "    make compare-visual Compare GPUs (visual charts)"
+	@echo "    make export-csv    Export all results to CSV"
+	@echo "    make compare-all   Run all comparisons"
 	@echo ""
 	@echo "  Other:"
 	@echo "    make clean         Clean generated files"
@@ -122,6 +129,32 @@ results:
 	@echo ""
 	@echo "Reports:"
 	@ls -la $(BENCHMARK_DIR)/reports/ 2>/dev/null || echo "No reports yet"
+
+# ─────────────────────────────────────────────────────────────────────
+# GPU Comparison & Export
+# ─────────────────────────────────────────────────────────────────────
+compare:
+	@echo "Comparing GPU benchmark results..."
+	$(VENV) cd $(BENCHMARK_DIR) && $(PYTHON) compare_results.py
+
+compare-csv:
+	@echo "Comparing and exporting to CSV..."
+	$(VENV) cd $(BENCHMARK_DIR) && $(PYTHON) compare_results.py --csv
+
+compare-visual:
+	@echo "Creating visual GPU comparison..."
+	$(VENV) cd $(BENCHMARK_DIR) && $(PYTHON) -c "from visualize_results import compare_all_gpus_visual; compare_all_gpus_visual()"
+
+export-csv:
+	@echo "Exporting results to CSV..."
+	$(VENV) cd $(BENCHMARK_DIR) && $(PYTHON) export_to_csv.py
+
+compare-all: compare compare-csv compare-visual
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  All comparisons complete!"
+	@echo "  Check $(BENCHMARK_DIR)/reports/ for outputs"
+	@echo "════════════════════════════════════════════════════════════════"
 
 # ─────────────────────────────────────────────────────────────────────
 # Single Query Test

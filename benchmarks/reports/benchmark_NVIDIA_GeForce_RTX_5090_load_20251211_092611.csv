@@ -1,0 +1,37 @@
+=== BENCHMARK INFO ===,
+Test Date,2025-12-11 09:26:11
+GPU,NVIDIA GeForce RTX 5090
+Test Type,load
+Repeat Count,3
+Warmup Requests,3
+Question Count,6
+""
+=== GPU INFO (START) ===,
+Memory Total (GB),31.8
+Memory Used (GB),27.7
+Memory Free (GB),3.6
+Utilization (%),0
+Temperature (°C),33
+Power (W),12.2
+""
+=== GPU INFO (END) ===,
+Temperature (°C),36
+Power (W),61.75
+Temperature Increase (°C),3
+""
+=== PERFORMANCE RESULTS ===,
+Concurrent Users,Total Requests,Successful,Throughput (req/s),Avg Latency (s),Min Latency (s),Max Latency (s),Std Dev (s),P50 (s),P75 (s),P90 (s),P95 (s),P99 (s),Success Rate (%),Apdex Score,Concurrency Factor
+5,15,15,1.41,2.281,1.543,4.044,0.827,1.869,2.559,3.604,3.811,3.997,100.0,1.000,3.22
+10,30,30,1.78,4.061,3.153,6.335,0.792,3.837,4.449,5.129,5.518,6.110,100.0,0.917,7.23
+20,60,60,1.85,9.164,8.206,11.420,0.759,8.896,9.474,10.276,10.388,11.408,100.0,0.500,16.99
+30,90,90,1.90,14.088,12.690,15.928,0.781,13.873,14.593,15.434,15.554,15.695,100.0,0.500,26.82
+""
+=== SUMMARY ===,
+Peak Throughput (req/s),1.9
+Peak Throughput at Users,30
+Best Latency (s),2.281
+Best Latency at Users,5
+Latency Degradation (%),517.6
+Throughput Scaling (%),34.8
+Max Tested Users,30
+All Tests Passed,Yes

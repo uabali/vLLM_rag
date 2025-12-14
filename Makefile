@@ -64,9 +64,9 @@ BENCHMARK_DIR = benchmarks
 # Servers
 # ─────────────────────────────────────────────────────────────────────
 vllm:
-	@echo "Starting vLLM server on port 8080..."
+	@echo "Starting vLLM server on port 8082..."
 	$(VENV) vllm serve Qwen/Qwen2.5-3B-Instruct \
-		--port 8080 \
+		--port 8082 \
 		--gpu-memory-utilization 0.85
 
 api:
@@ -80,7 +80,7 @@ health:
 	@echo "Checking health..."
 	@curl -s http://localhost:8000/health | python -m json.tool || echo "API not running"
 	@echo ""
-	@curl -s http://localhost:8080/health | python -m json.tool || echo "vLLM not running"
+	@curl -s http://localhost:8082/health | python -m json.tool || echo "vLLM not running"
 
 gpu:
 	@nvidia-smi

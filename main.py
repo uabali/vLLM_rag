@@ -79,7 +79,7 @@ async def lifespan(app: FastAPI):
     logger.info("Starting RAG API Server...")
     logger.info("Model: Qwen/Qwen2.5-3B-Instruct")
     logger.info("Vector DB: Qdrant")
-    logger.info("vLLM Endpoint: http://localhost:8080/v1")
+    logger.info("vLLM Endpoint: http://localhost:8082/v1")
     
     # Ensure collection exists first
     ensure_qdrant_collection(reset=False)
@@ -184,7 +184,7 @@ vectorstore = QdrantVectorStore(
 llm = ChatOpenAI(
     model="Qwen/Qwen2.5-3B-Instruct",
     openai_api_key="EMPTY",
-    openai_api_base="http://localhost:8080/v1",
+    openai_api_base="http://localhost:8082/v1",
     temperature=0.3,
     max_tokens=512,
 )

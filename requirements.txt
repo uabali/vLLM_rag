@@ -22,6 +22,7 @@ safetensors>=0.4.2
 
 # LLM Backends
 ollama>=0.1.9
+vllm>=0.6.0
 
 # API Server
 fastapi>=0.104.0

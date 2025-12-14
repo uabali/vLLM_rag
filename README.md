@@ -89,7 +89,7 @@ Production sistemlerde olculen kritik metrikler:
                                           v
                                +--------------------+
                                |   vLLM Server      |
-                               |   (Port 8080)      |
+                               |   (Port 8082)      |
                                |                    |
                                | Qwen2.5-3B-Instruct|
                                +--------------------+
@@ -145,13 +145,13 @@ cd /home/abali/GithubCode/vLLM_rag
 source vllm-env/bin/activate
 
 vllm serve Qwen/Qwen2.5-3B-Instruct \
-    --port 8080 \
+    --port 8082 \
     --gpu-memory-utilization 0.85
 ```
 
 Wait until you see:
 ```
-INFO:     Uvicorn running on http://0.0.0.0:8080
+INFO:     Uvicorn running on http://0.0.0.0:8082
 ```
 
 #### Terminal 2: Start RAG API Server
@@ -267,7 +267,7 @@ Ornek: `results/benchmark_NVIDIA_GeForce_RTX_4090_load_20251210_153045.json`
 ```bash
 # ===== GPU 1 (ornek: RTX 3090) =====
 # Terminal 1: vLLM server
-vllm serve Qwen/Qwen2.5-3B-Instruct --port 8080
+vllm serve Qwen/Qwen2.5-3B-Instruct --port 8082
 
 # Terminal 2: RAG API
 python main.py
@@ -350,7 +350,7 @@ curl -X POST http://localhost:8000/query \
 
 | Service | Port | Purpose |
 |---------|------|---------|
-| vLLM Server | 8080 | LLM inference |
+| vLLM Server | 8082 | LLM inference |
 | FastAPI RAG | 8000 | RAG API |
 
 ---
@@ -360,14 +360,14 @@ curl -X POST http://localhost:8000/query \
 ### GPU Memory Error
 ```bash
 # Reduce memory utilization
-vllm serve Qwen/Qwen2.5-3B-Instruct --port 8080 --gpu-memory-utilization 0.80
+vllm serve Qwen/Qwen2.5-3B-Instruct --port 8082 --gpu-memory-utilization 0.80
 ```
 
 ### Port Already in Use
 ```bash
 # Check what's using the port
 lsof -i :8000
-lsof -i :8080
+lsof -i :8082
 
 # Kill the process
 kill -9 <PID>

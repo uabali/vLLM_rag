@@ -19,13 +19,13 @@ cd /home/abali/GithubCode/vLLM_rag
 source vllm-env/bin/activate
 
 vllm serve Qwen/Qwen2.5-3B-Instruct \
-  --port 8080 \
+  --port 8082 \
   --gpu-memory-utilization 0.85
 ```
 
 Bekle (ornektir):
 ```
-Uvicorn running on http://0.0.0.0:8080
+Uvicorn running on http://0.0.0.0:8082
 ```
 
 ## 2) RAG API (Terminal 2)
@@ -54,7 +54,7 @@ Alternatif:
 
 ```bash
 curl http://localhost:8000/health
-curl http://localhost:8080/health
+curl http://localhost:8082/health
 ```
 
 ## 4) Qdrant’da dokuman var mi kontrol et

@@ -9,10 +9,10 @@ cd /home/abali/GithubCode/vLLM_rag
 source vllm-env/bin/activate
 
 vllm serve Qwen/Qwen2.5-3B-Instruct \
-    --port 8080 \
+    --port 8082 \
     --gpu-memory-utilization 0.85
 
-# Bekle: "Uvicorn running on http://0.0.0.0:8080"
+# Bekle: "Uvicorn running on http://0.0.0.0:8082"
 
 # ─────────────────────────────────────────────────────────────────────
 # Terminal 2 - RAG API Server

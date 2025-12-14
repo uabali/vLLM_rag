@@ -35,7 +35,7 @@ RESULTS_DIR.mkdir(exist_ok=True)
 # ═══════════════════════════════════════════════════════════════════
 
 API_URL = "http://localhost:8000/query"
-VLLM_URL = "http://localhost:8080/health"
+VLLM_URL = "http://localhost:8082/health"
 
 # Standard benchmark questions (diverse complexity)
 BENCHMARK_QUESTIONS = [

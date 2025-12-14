@@ -234,7 +234,7 @@ if __name__ == "__main__":
         r = requests.get("http://localhost:8000/health", timeout=5)
         print("Server is running\n")
     except:
-        print("Server is not running! First run 'python api_server.py'")
+        print("Server is not running! First run 'python main.py'")
         exit(1)
     
     # Test scenarios

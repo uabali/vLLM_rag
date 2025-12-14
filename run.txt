@@ -20,7 +20,7 @@ vllm serve Qwen/Qwen2.5-3B-Instruct \
 cd /home/abali/GithubCode/vLLM_rag
 source vllm-env/bin/activate
 
-python api_server.py
+python main.py
 
 # Bekle: "Uvicorn running on http://0.0.0.0:8000"
 

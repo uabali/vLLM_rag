@@ -78,7 +78,7 @@ Production sistemlerde olculen kritik metrikler:
 |                                                                          |
 |  +------------------+    +------------------+    +------------------+    |
 |  |   Embedding      |    |    Retrieval     |    |   LLM Call       |    |
-|  |   (bge-m3)       |--->|   (ChromaDB)     |--->|   (vLLM)         |    |
+|  |   (bge-m3)       |--->|    (Qdrant)      |--->|   (vLLM)         |    |
 |  +------------------+    +------------------+    +------------------+    |
 |         |                        |                       |               |
 |         v                        v                       v               |
@@ -104,10 +104,9 @@ Production sistemlerde olculen kritik metrikler:
 
 ```
 vLLM_rag/
-├── api_server.py              # FastAPI RAG server
-├── main.py                    # CLI RAG (Ollama version)
+├── main.py                    # FastAPI RAG server (vLLM + Qwen)
 ├── requirements.txt           # Python dependencies
-├── chroma_db/                 # Vector database
+├── qdrant_db/                 # Qdrant vector database
 ├── data/                      # PDF documents
 ├── rag_api.log                # API logs
 │
@@ -161,7 +160,7 @@ INFO:     Uvicorn running on http://0.0.0.0:8080
 cd /home/abali/GithubCode/vLLM_rag
 source vllm-env/bin/activate
 
-python api_server.py
+python main.py
 ```
 
 Wait until you see:
@@ -191,6 +190,22 @@ python benchmark.py --test-type load
 
 # Visualize results
 python visualize_results.py
+```
+
+### Indexing PDFs into Qdrant (first run)
+
+If `/stats` shows `total_documents: 0`, Qdrant is empty and retrieval will return no docs. Index your PDFs:
+
+```bash
+curl -X POST http://localhost:8000/index \
+  -H "Content-Type: application/json" \
+  -d '{"pdf_folder":"data","glob_pattern":"*.pdf","chunk_size":800,"chunk_overlap":120,"reset_collection":false}'
+```
+
+Then verify:
+
+```bash
+curl http://localhost:8000/stats
 ```
 
 ---
@@ -255,7 +270,7 @@ Ornek: `results/benchmark_NVIDIA_GeForce_RTX_4090_load_20251210_153045.json`
 vllm serve Qwen/Qwen2.5-3B-Instruct --port 8080
 
 # Terminal 2: RAG API
-python api_server.py
+python main.py
 
 # Terminal 3: Benchmark
 cd benchmarks
@@ -369,7 +384,7 @@ nvidia-smi
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `max_workers` | 50 | ThreadPoolExecutor workers in api_server.py |
+| `max_workers` | 50 | ThreadPoolExecutor workers in main.py |
 | `gpu-memory-utilization` | 0.85 | vLLM GPU memory usage |
 | `k` | 6 | Number of documents to retrieve |
 | `score_threshold` | 0.2 | Minimum similarity score |

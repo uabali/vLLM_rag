@@ -71,7 +71,7 @@ vllm:
 
 api:
 	@echo "Starting RAG API server on port 8000..."
-	$(VENV) $(PYTHON) api_server.py
+	$(VENV) $(PYTHON) main.py
 
 # ─────────────────────────────────────────────────────────────────────
 # Health & Status

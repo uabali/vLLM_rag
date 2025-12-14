@@ -59,7 +59,7 @@ LOAD_LEVELS = {
 }
 
 # Warmup configuration
-WARMUP_REQUESTS = 3
+WARMUP_REQUESTS = 7  # Increased from 3 to ensure GPU is fully warmed up
 COOLDOWN_SECONDS = 3
 REPEAT_COUNT = 3  # Run each test 3 times for statistical validity
 

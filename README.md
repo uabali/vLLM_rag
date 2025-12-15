@@ -123,6 +123,33 @@ vLLM_rag/
 
 ---
 
+## 🚀 Quick Start
+
+### Cloud Deployment (vest.ai, etc.)
+
+**Hızlı kurulum için:** [`DEPLOY.md`](DEPLOY.md) dosyasına bakın.
+
+```bash
+# 1. Clone repo
+git clone https://github.com/uabali/vLLM_rag.git
+cd vLLM_rag
+
+# 2. Otomatik kurulum
+make install
+
+# 3. Servisleri başlat
+make vllm    # Terminal 1
+make api     # Terminal 2
+
+# 4. Test
+make health
+make query
+```
+
+### Local Development
+
+---
+
 ## Running the System
 
 ### Prerequisites

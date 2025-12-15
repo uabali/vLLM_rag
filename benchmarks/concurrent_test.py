@@ -1,12 +1,3 @@
-"""
-Quick Concurrent User Performance Test
-======================================
-Fast concurrent test without GPU monitoring.
-
-Usage:
-    python concurrent_test.py
-"""
-
 import requests
 import threading
 import time
@@ -15,29 +6,17 @@ import statistics
 from datetime import datetime
 from pathlib import Path
 
-# ═══════════════════════════════════════════════════════════════════
-# PATHS
-# ═══════════════════════════════════════════════════════════════════
-
 SCRIPT_DIR = Path(__file__).parent
 RESULTS_DIR = SCRIPT_DIR / "results"
 RESULTS_DIR.mkdir(exist_ok=True)
 
-# ═══════════════════════════════════════════════════════════════════
-# CONFIGURATION
-# ═══════════════════════════════════════════════════════════════════
-
 API_URL = "http://localhost:8000/query"
 
-# Standard benchmark questions (same as benchmark.py)
 QUESTIONS = [
-    # Short questions (simple retrieval)
     "Agile nedir?",
     "Scrum nedir?",
-    # Medium questions
     "Yazilim mimarisi neden onemlidir?",
     "Mikroservis avantajlari nelerdir?",
-    # Complex questions
     "Monolitik ve mikroservis mimarisi arasindaki farklar nelerdir?",
     "Guvenli yazilim gelistirme sureci nasil olmalidir?",
 ]
@@ -45,12 +24,8 @@ QUESTIONS = [
 results = []
 all_test_results = []
 
-# ═══════════════════════════════════════════════════════════════════
-# UTILITIES
-# ═══════════════════════════════════════════════════════════════════
-
 def percentile(data, p):
-    """Calculate percentile without numpy dependency"""
+    """Calculate percentile"""
     if not data:
         return 0
     sorted_data = sorted(data)
@@ -67,11 +42,10 @@ def send_request(user_id, question):
         response = requests.post(API_URL, json={"question": question}, timeout=120)
         elapsed = time.time() - start
         data = response.json()
-        answer = data.get("answer", "")
         results.append({
             "user": user_id,
             "question": question,
-            "answer": answer,
+            "answer": data.get("answer", ""),
             "status": response.status_code,
             "time": round(elapsed, 2),
             "success": True
@@ -82,17 +56,12 @@ def send_request(user_id, question):
         results.append({
             "user": user_id,
             "question": question,
-            "answer": "",
             "status": "error",
             "time": round(elapsed, 2),
             "success": False,
             "error": str(e)
         })
         print(f"User {user_id}: ERROR - {e}")
-
-# ═══════════════════════════════════════════════════════════════════
-# TEST EXECUTION
-# ═══════════════════════════════════════════════════════════════════
 
 def test_concurrent_users(num_users):
     print(f"\n{'='*60}")
@@ -101,7 +70,6 @@ def test_concurrent_users(num_users):
     
     results.clear()
     threads = []
-    
     start_time = time.time()
     
     for i in range(num_users):
@@ -116,8 +84,6 @@ def test_concurrent_users(num_users):
         t.join()
     
     total_time = time.time() - start_time
-    
-    # Basic metrics
     successful = sum(1 for r in results if r["success"])
     failed = num_users - successful
     times = [r["time"] for r in results if r["success"]]
@@ -125,7 +91,6 @@ def test_concurrent_users(num_users):
     avg_time = sum(times) / len(times) if times else 0
     throughput = successful / total_time if total_time > 0 else 0
     
-    # Advanced metrics
     if times:
         p50 = percentile(times, 50)
         p95 = percentile(times, 95)
@@ -136,29 +101,14 @@ def test_concurrent_users(num_users):
     else:
         p50 = p95 = p99 = std_dev = min_time = max_time = 0
     
-    # Print results
     print(f"\n{'-'*60}")
-    print(f"BASIC METRICS")
+    print(f"RESULTS")
     print(f"{'-'*60}")
     print(f"  Total time:          {total_time:.2f}s")
     print(f"  Successful:          {successful}/{num_users} ({successful/num_users*100:.1f}%)")
-    print(f"  Failed:              {failed}/{num_users}")
     print(f"  Throughput:          {throughput:.2f} req/s")
-    
-    print(f"\n{'-'*60}")
-    print(f"LATENCY METRICS")
-    print(f"{'-'*60}")
     print(f"  Average:             {avg_time:.2f}s")
-    print(f"  Min:                 {min_time:.2f}s")
-    print(f"  Max:                 {max_time:.2f}s")
-    print(f"  Std Dev:             {std_dev:.2f}s")
-    
-    print(f"\n{'-'*60}")
-    print(f"PERCENTILES")
-    print(f"{'-'*60}")
-    print(f"  P50 (Median):        {p50:.2f}s")
-    print(f"  P95:                 {p95:.2f}s")
-    print(f"  P99:                 {p99:.2f}s")
+    print(f"  P50/P95/P99:         {p50:.2f}s / {p95:.2f}s / {p99:.2f}s")
     
     test_result = {
         "user_count": num_users,
@@ -173,15 +123,14 @@ def test_concurrent_users(num_users):
         "std_dev": round(std_dev, 2),
         "p50": round(p50, 2),
         "p95": round(p95, 2),
-        "p99": round(p99, 2),
-        "details": list(results)
+        "p99": round(p99, 2)
     }
     all_test_results.append(test_result)
     
     return successful == num_users
 
 def print_summary():
-    """Print summary table of all tests"""
+    """Print summary table"""
     print(f"\n{'='*80}")
     print(f"SUMMARY TABLE")
     print(f"{'='*80}")
@@ -189,13 +138,13 @@ def print_summary():
     print(f"{'-'*80}")
     
     for t in all_test_results:
-        print(f"{t['user_count']:>8} | {t['success_rate']:>7.1f}% | {t['throughput']:>10.2f}/s | {t['avg_response_time']:>7.2f}s | {t['p50']:>7.2f}s | {t['p95']:>7.2f}s | {t['p99']:>7.2f}s")
+        print(f"{t['user_count']:>8} | {t['success_rate']:>7.1f}% | {t['throughput']:>10.2f}/s | "
+              f"{t['avg_response_time']:>7.2f}s | {t['p50']:>7.2f}s | {t['p95']:>7.2f}s | {t['p99']:>7.2f}s")
 
 def save_results():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = RESULTS_DIR / f"test_results_{timestamp}.json"
     
-    # Calculate overall summary
     total_requests = sum(t['user_count'] for t in all_test_results)
     total_successful = sum(t['successful'] for t in all_test_results)
     avg_throughput = sum(t['throughput'] for t in all_test_results) / len(all_test_results) if all_test_results else 0
@@ -218,37 +167,29 @@ def save_results():
     print(f"\nResults saved: {filename}")
     return filename
 
-# ═══════════════════════════════════════════════════════════════════
-# MAIN
-# ═══════════════════════════════════════════════════════════════════
-
 if __name__ == "__main__":
     print("="*60)
     print("CONCURRENT USER PERFORMANCE TEST")
     print("="*60)
     print(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"API URL: {API_URL}")
-    print(f"Questions: {len(QUESTIONS)}")
     
     try:
-        r = requests.get("http://localhost:8000/health", timeout=5)
+        requests.get("http://localhost:8000/health", timeout=5)
         print("Server is running\n")
     except:
         print("Server is not running! First run 'python main.py'")
         exit(1)
     
-    # Test scenarios
     test_scenarios = [3, 9, 27, 82, 100]
     
     for num_users in test_scenarios:
         test_concurrent_users(num_users)
-        time.sleep(2)  # Cooldown between tests
+        time.sleep(2)
     
-    # Print summary and save
     print_summary()
     save_results()
     
     print("\n" + "="*60)
     print("ALL TESTS COMPLETED!")
     print("="*60)
-

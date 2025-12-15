@@ -17,6 +17,22 @@ import glob
 from uuid import uuid4
 from datetime import datetime
 from contextlib import asynccontextmanager
+from typing import TypedDict, List
+from langgraph.graph import StateGraph, END
+
+# ─────────────────────────────────────────────────────────────
+# LANGGRAPH STATE DEFINITION
+# ─────────────────────────────────────────────────────────────
+class GraphState(TypedDict):
+    question: str
+    original_question: str  # For tracking rewrites
+    context: str
+    answer: str
+    retrieval_time: float
+    llm_time: float
+    complexity: str  # SIMPLE, MEDIUM, COMPLEX
+    relevance_score: float  # 0.0-1.0
+    retry_count: int  # Track rewrite attempts
 
 # ─────────────────────────────────────────────────────────────
 # LOGGING SETUP
@@ -287,42 +303,317 @@ def index_pdfs_sync(req: IndexRequest) -> dict:
         "total_seconds": round(total_time, 3),
     }
 
+# ─────────────────────────────────────────────────────────────
+# LANGGRAPH NODES
+# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────
+# LANGGRAPH NODES - ADAPTIVE & SELF-CORRECTION
+# ─────────────────────────────────────────────────────────────
+
+def classify_question(state: GraphState):
+    """
+    Classify question complexity: SIMPLE, MEDIUM, COMPLEX
+    """
+    question = state["question"]
+    
+    classify_prompt = f"""Classify this question's complexity. Reply with ONLY one word: SIMPLE, MEDIUM, or COMPLEX.
+
+SIMPLE: Greetings, basic questions that don't need document retrieval (e.g., "Hello", "Thanks")
+MEDIUM: Straightforward factual questions (e.g., "What is vLLM?")
+COMPLEX: Multi-part or comparative questions (e.g., "Compare vLLM and TensorRT performance")
+
+Question: {question}
+
+Classification:"""
+    
+    try:
+        response = llm.invoke(classify_prompt)
+        complexity = response.content.strip().upper()
+        
+        # Validate response
+        if complexity not in ["SIMPLE", "MEDIUM", "COMPLEX"]:
+            complexity = "MEDIUM"  # Default fallback
+        
+        logger.info(f"Question classified as: {complexity} | Q: {question[:40]}...")
+        return {"complexity": complexity}
+    except Exception as e:
+        logger.warning(f"Classification failed: {e}, defaulting to MEDIUM")
+        return {"complexity": "MEDIUM"}
+
+def direct_answer(state: GraphState):
+    """
+    Answer simple questions directly without retrieval (e.g., greetings)
+    """
+    start_time = time.time()
+    question = state["question"]
+    
+    simple_prompt = f"""You are a helpful assistant. Answer this simple question briefly and politely.
+
+Question: {question}
+
+Answer:"""
+    
+    response = llm.invoke(simple_prompt)
+    llm_time = time.time() - start_time
+    
+    logger.info(f"Direct answer (no retrieval) | LLM: {llm_time:.3f}s | Q: {question[:40]}...")
+    
+    return {
+        "answer": response.content,
+        "llm_time": llm_time,
+        "retrieval_time": 0.0,
+        "context": "",
+        "relevance_score": 1.0
+    }
+
+def retrieve(state: GraphState):
+    """
+    Retrieve documents with adaptive k based on complexity.
+    """
+    start_time = time.time()
+    question = state["question"]
+    complexity = state.get("complexity", "MEDIUM")
+    
+    # Adaptive retrieval: adjust k based on complexity
+    k_map = {"SIMPLE": 3, "MEDIUM": 6, "COMPLEX": 10}
+    k = k_map.get(complexity, 6)
+    
+    # Update retriever with adaptive k
+    adaptive_retriever = vectorstore.as_retriever(
+        search_type="similarity",
+        search_kwargs={"k": k}
+    )
+    
+    retrieved_docs = adaptive_retriever.invoke(question)
+    retrieval_time = time.time() - start_time
+    
+    if not retrieved_docs:
+        logger.warning(f"No docs found | Q: {question[:50]}... | Retrieval: {retrieval_time:.3f}s")
+        return {
+            "context": "",
+            "retrieval_time": retrieval_time,
+            "relevance_score": 0.0
+        }
+    
+    context = format_docs(retrieved_docs)
+    logger.info(f"Retrieved {len(retrieved_docs)} docs (k={k}) | Time: {retrieval_time:.3f}s")
+    
+    return {
+        "context": context,
+        "retrieval_time": retrieval_time
+    }
+
+def grade_documents(state: GraphState):
+    """
+    Grade document relevance using LLM.
+    Returns relevance score (0.0-1.0).
+    """
+    question = state["question"]
+    context = state["context"]
+    
+    if not context:
+        return {"relevance_score": 0.0}
+    
+    grade_prompt = f"""You are a grading assistant. Evaluate if the CONTEXT is relevant to answer the QUESTION.
+
+Reply with ONLY one word: RELEVANT or IRRELEVANT
+
+QUESTION: {question}
+
+CONTEXT:
+{context[:1000]}...
+
+Evaluation:"""
+    
+    try:
+        response = llm.invoke(grade_prompt)
+        grade = response.content.strip().upper()
+        
+        relevance_score = 1.0 if "RELEVANT" in grade else 0.0
+        
+        logger.info(f"Document grading: {grade} (score={relevance_score}) | Q: {question[:40]}...")
+        return {"relevance_score": relevance_score}
+    except Exception as e:
+        logger.warning(f"Grading failed: {e}, assuming relevant")
+        return {"relevance_score": 0.5}
+
+def rewrite_query(state: GraphState):
+    """
+    Rewrite the query to improve retrieval quality.
+    """
+    question = state["question"]
+    retry_count = state.get("retry_count", 0)
+    
+    rewrite_prompt = f"""You are a query optimization expert. Rewrite this question to be more specific and retrieval-friendly.
+
+Original question: {question}
+
+Rewritten question (be concise, keep the same language):"""
+    
+    try:
+        response = llm.invoke(rewrite_prompt)
+        rewritten = response.content.strip()
+        
+        logger.info(f"Query rewritten (attempt {retry_count + 1}): '{question[:30]}...' → '{rewritten[:30]}...'")
+        
+        return {
+            "question": rewritten,
+            "retry_count": retry_count + 1
+        }
+    except Exception as e:
+        logger.error(f"Query rewrite failed: {e}")
+        return {"retry_count": retry_count + 1}
+
+def generate(state: GraphState):
+    """
+    Generate answer using the LLM.
+    """
+    start_time = time.time()
+    question = state["original_question"]  # Use original question for answer
+    context = state["context"]
+    
+    # Early exit if no context found
+    if not context:
+        return {
+            "answer": "Answer not found in context.",
+            "llm_time": 0.0
+        }
+
+    formatted_prompt = prompt.format(context=context, question=question)
+    response = llm.invoke(formatted_prompt)
+    llm_time = time.time() - start_time
+    
+    return {
+        "answer": response.content,
+        "llm_time": llm_time
+    }
+
+# ─────────────────────────────────────────────────────────────
+# ROUTING FUNCTIONS
+# ─────────────────────────────────────────────────────────────
+
+def route_by_complexity(state: GraphState):
+    """Route based on question complexity."""
+    complexity = state.get("complexity", "MEDIUM")
+    
+    if complexity == "SIMPLE":
+        return "direct_answer"
+    else:
+        return "retrieve"
+
+def should_rewrite(state: GraphState):
+    """Decide if we should rewrite query based on relevance."""
+    relevance = state.get("relevance_score", 1.0)
+    retry_count = state.get("retry_count", 0)
+    
+    # If documents are irrelevant and we haven't retried too many times
+    if relevance < 0.5 and retry_count < 2:
+        logger.info(f"Low relevance ({relevance}), rewriting query...")
+        return "rewrite"
+    else:
+        return "generate"
+
+# ─────────────────────────────────────────────────────────────
+# GRAPH CONSTRUCTION - ADVANCED RAG
+# ─────────────────────────────────────────────────────────────
+workflow = StateGraph(GraphState)
+
+# Add nodes
+workflow.add_node("classify", classify_question)
+workflow.add_node("direct_answer", direct_answer)
+workflow.add_node("retrieve", retrieve)
+workflow.add_node("grade", grade_documents)
+workflow.add_node("rewrite", rewrite_query)
+workflow.add_node("generate", generate)
+
+# Set entry point
+workflow.set_entry_point("classify")
+
+# Add conditional routing from classify
+workflow.add_conditional_edges(
+    "classify",
+    route_by_complexity,
+    {
+        "direct_answer": "direct_answer",
+        "retrieve": "retrieve"
+    }
+)
+
+# Direct answer goes straight to END
+workflow.add_edge("direct_answer", END)
+
+# After retrieval, grade the documents
+workflow.add_edge("retrieve", "grade")
+
+# After grading, decide: rewrite or generate
+workflow.add_conditional_edges(
+    "grade",
+    should_rewrite,
+    {
+        "rewrite": "rewrite",
+        "generate": "generate"
+    }
+)
+
+# After rewrite, try retrieval again
+workflow.add_edge("rewrite", "retrieve")
+
+# After generation, we're done
+workflow.add_edge("generate", END)
+
+# Compile graph
+rag_graph = workflow.compile()
+
 def process_query_sync(question: str) -> tuple[str, float, float, float]:
     """
-    Synchronous query processing - retrieval and LLM in one call
+    Synchronous query processing using LangGraph with adaptive retrieval and self-correction.
     Returns: (answer, retrieval_time, llm_time, total_time)
     """
     start_total = time.time()
     
-    # 1. Retrieval
-    start_retrieval = time.time()
-    retrieved_docs = retriever.invoke(question)
-    retrieval_time = time.time() - start_retrieval
+    # Initialize state with all required fields
+    initial_state = {
+        "question": question,
+        "original_question": question,  # Keep original for final answer
+        "context": "",
+        "answer": "",
+        "retrieval_time": 0.0,
+        "llm_time": 0.0,
+        "complexity": "MEDIUM",
+        "relevance_score": 1.0,
+        "retry_count": 0
+    }
     
-    if not retrieved_docs:
+    # Invoke graph
+    try:
+        final_state = rag_graph.invoke(initial_state)
+        
+        answer = final_state.get("answer", "Error occurred")
+        retrieval_time = final_state.get("retrieval_time", 0.0)
+        llm_time = final_state.get("llm_time", 0.0)
         total_time = time.time() - start_total
-        logger.warning(f"No docs found | Q: {question[:50]}... | Retrieval: {retrieval_time:.3f}s")
-        return "Answer not found in context.", retrieval_time, 0.0, total_time
-    
-    # 2. LLM Generation
-    start_llm = time.time()
-    context = format_docs(retrieved_docs)
-    formatted_prompt = prompt.format(context=context, question=question)
-    response = llm.invoke(formatted_prompt)
-    llm_time = time.time() - start_llm
-    
-    total_time = time.time() - start_total
-    
-    logger.info(
-        f"Query OK | "
-        f"Docs: {len(retrieved_docs)} | "
-        f"Retrieval: {retrieval_time:.3f}s | "
-        f"LLM: {llm_time:.3f}s | "
-        f"Total: {total_time:.3f}s | "
-        f"Q: {question[:40]}..."
-    )
-    
-    return response.content, retrieval_time, llm_time, total_time
+        
+        # Log with additional metadata
+        complexity = final_state.get("complexity", "UNKNOWN")
+        relevance = final_state.get("relevance_score", 0.0)
+        retries = final_state.get("retry_count", 0)
+        
+        logger.info(
+            f"Query OK (Advanced RAG) | "
+            f"Complexity: {complexity} | "
+            f"Relevance: {relevance:.2f} | "
+            f"Retries: {retries} | "
+            f"Retrieval: {retrieval_time:.3f}s | "
+            f"LLM: {llm_time:.3f}s | "
+            f"Total: {total_time:.3f}s | "
+            f"Q: {question[:40]}..."
+        )
+        
+        return answer, retrieval_time, llm_time, total_time
+        
+    except Exception as e:
+        logger.error(f"Graph execution failed: {e}")
+        return "An error occurred during graph execution.", 0.0, 0.0, time.time() - start_total
 
 # ─────────────────────────────────────────────────────────────
 # API ENDPOINTS

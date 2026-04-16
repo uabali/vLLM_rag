@@ -1,24 +1,3 @@
----
-
-## Overview
-
-This repository is a production-ready **AI Operations Center** prototype featuring:
-
-- **FastAPI Orchestrator** — LangGraph-based multi-agent RAG pipeline with SSE streaming, incremental document ingestion, runtime LLM provider switching, and metrics.
-- **vLLM** — OpenAI-compatible local LLM server (Qwen3 / Qwen2.5 family, AWQ quantized).
-- **Qdrant** — Multi-tenant vector database with optional strict namespace isolation.
-- **Redis + Postgres** — Multi-tier memory (short-term buffer, episodic, entity, conversation summaries) + append-only audit log + departmental metrics.
-- **Next.js Frontend** — Modern chat UI with RAG/Web/MCP modes, file upload, department & model selector, agent status panel, and monitoring dashboard.
-- **MCP Tooling** — Optional Model Context Protocol integration for filesystem, database, and memory tools.
-
-## Architecture
-
-<div align="center">
-
-![Architecture](docs/architecture.png)
-
-</div>
-
 ### Agent Pipeline
 
 ```

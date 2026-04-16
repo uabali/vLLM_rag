@@ -1,19 +1,3 @@
-<div align="center">
-
-# 🤖 Enterprise Agentic RAG & AI Ops Center
-
-**FastAPI · LangGraph · vLLM · Qdrant · Redis · Postgres · Next.js · MCP**
-
-A GPU-accelerated, multi-agent RAG system that runs with a single `docker compose up`.
-
-[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688.svg)](https://fastapi.tiangolo.com)
-[![LangGraph](https://img.shields.io/badge/LangGraph-ReAct-purple.svg)](https://langchain-ai.github.io/langgraph/)
-[![vLLM](https://img.shields.io/badge/vLLM-Qwen3--8B--AWQ-orange.svg)](https://github.com/vllm-project/vllm)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-
-</div>
-
 ---
 
 ## Overview
